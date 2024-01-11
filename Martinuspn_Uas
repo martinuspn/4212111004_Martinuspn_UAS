@@ -1,0 +1,56 @@
+import numpy as np
+from sklearn import datasets
+from skimage.feature import hog
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn import metrics
+import matplotlib.pyplot as plt
+from sklearn.datasets import fetch_openml
+
+# Load the MNIST dataset
+mnist = fetch_openml('mnist_784', version=1, cache=True)
+
+# Extract HOG features
+features = []
+for image in mnist.data:
+    _, hog_image = hog(image.reshape((28, 28)), orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+    features.append(hog_image)
+
+# Prepare data and labels
+X = np.array(features)
+y = np.array(mnist.target.astype(int))
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardize features by removing the mean and scaling to unit variance
+scaler = StandardScaler()
+X_train_std = scaler.fit_transform(X_train)
+X_test_std = scaler.transform(X_test)
+
+# Train a Support Vector Machine classifier
+svm_classifier = SVC(kernel='linear', C=1.0, random_state=42)
+svm_classifier.fit(X_train_std, y_train)
+
+# Predict on the test set
+y_pred = svm_classifier.predict(X_test_std)
+
+# Evaluate performance
+conf_matrix = metrics.confusion_matrix(y_test, y_pred)
+accuracy = metrics.accuracy_score(y_test, y_pred)
+precision = metrics.precision_score(y_test, y_pred, average='weighted')
+
+# Display results
+print("Confusion Matrix:\n", conf_matrix)
+print("\nAccuracy:", accuracy)
+print("\nPrecision:", precision)
+
+# Plot a few example images and their predictions
+fig, axes = plt.subplots(1, 10, figsize=(12, 3),
+                         subplot_kw={'xticks':[], 'yticks':[]},
+                         gridspec_kw=dict(hspace=0.1, wspace=0.1))
+for i, ax in enumerate(axes.flat):
+    ax.imshow(X_test[i].reshape((28, 28)), cmap='gray')
+    ax.set_title(f'Predicted: {y_pred[i]}')
+plt.show()
